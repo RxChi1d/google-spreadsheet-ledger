@@ -57,16 +57,35 @@ def add_row_to_sheet(row: list):
     run_query(sql)
 
 
-st.title("記ㄍ帳")
+st.title("欸你記ㄍ帳拉")
+
+sidebar = st.sidebar
+
+with sidebar:
+    sidebar.write("還在測試中喔")
+    sidebar.write(
+        "Google 試算表的[網址](https://docs.google.com/spreadsheets/d/1z_tAkygIBcAQxlVo7LqQzRQ4FZjGXMFDQOTXFGcPRNo/edit)")
+    sidebar.write("欄位說明：")
+    sidebar.write("""
+    - `種類`: 帳目的種類
+    - `標題`: 可以理解的標題
+    - `時間`: 帳目產生的時間
+    - `元`: 帳目數字
+    - `註記`: 附加說明
+    - `誰`: $$來源
+    """)
+
 
 form = st.form(key="annotation", clear_on_submit=True)
 
 with form:
     display = {
         "食物": '食物 🍙',
-        "遊戲": '遊戲 🎮'
+        "遊戲": '遊戲 🎮',
+        "現金": '竟然直接給錢！？ 💵',
+        "其他": '其他東西 ⚒️'
     }
-    options = ["食物", "遊戲"]
+    options = ["食物", "遊戲", "現金", "其他"]
 
     category = st.selectbox(
         label="種類",
@@ -77,7 +96,7 @@ with form:
     )
 
     date = st.date_input(
-        label="花費日期"
+        label="產生日期"
     )
 
     value = st.number_input(
@@ -92,11 +111,27 @@ with form:
 
     if submitted:
         add_row_to_sheet(
-            [category, title, date.strftime("%Y-%m-%d"), str(value), comment, who]
+            [category, title, date.strftime(
+                "%Y-%m-%d"), str(value), comment, who]
         )
         st.success("新增成功!")
         st.balloons()
 
 expander = st.expander("顯示目前的紀錄")
 with expander:
-    st.dataframe(pd.read_sql_query("select * from sheet", conn).sort_values(by="時間", ascending=False))
+    df = pd.read_sql_query("select * from sheet",
+                           conn)
+
+    def sumOfVal(series):
+        if series.name:
+            return series["元"].sum()
+        return 0
+    df_by_who = df.groupby('誰').apply(sumOfVal)
+    df_by_who = pd.DataFrame(df_by_who, columns=["付出的＄"])
+    col1, col2 = st.columns(2)
+    p1: int = df_by_who.iloc[0]
+    p2: int = df_by_who.iloc[1]
+    col1.metric(str(df_by_who.index[0]), p2)
+    col2.metric(str(df_by_who.index[1]), p1)
+    st.dataframe(df.sort_values(by="時間", ascending=False),
+                 use_container_width=True)
