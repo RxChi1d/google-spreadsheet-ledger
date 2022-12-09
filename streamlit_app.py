@@ -59,7 +59,7 @@ def add_row_to_sheet(row: list):
 
 st.title("記ㄍ帳")
 
-form = st.form(key="annotation")
+form = st.form(key="annotation", clear_on_submit=True)
 
 with form:
     display = {
