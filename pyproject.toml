@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "google_spreadsheet_ledger"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 streamlit = "^1.15.2"
 google-api-python-client = "^2.68.0"
 pandas = "^1.5.2"
