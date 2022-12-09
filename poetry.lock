@@ -815,7 +815,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "44daec874573002b5c85b07f80c0e790a8378b2f6432ecfc0fa73a670b632f16"
+content-hash = "81226e5760fd3799daf3bcf16b37c4052e8579e66bbcf1062a5c4981d3a6abf7"
 
 [metadata.files]
 altair = [
