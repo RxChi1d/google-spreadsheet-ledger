@@ -99,4 +99,4 @@ with form:
 
 expander = st.expander("顯示目前的紀錄")
 with expander:
-    st.dataframe(pd.read_sql_query("select * from sheet", conn))
+    st.dataframe(pd.read_sql_query("select * from sheet", conn).sort_values(by="時間", ascending=False))
