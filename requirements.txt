@@ -1,0 +1,5 @@
+google-api-python-client==2.68.0
+pandas==1.5.2
+shillelagh==1.1.3
+streamlit==1.15.2
+shillelagh[datasetteapi]
