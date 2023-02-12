@@ -226,7 +226,6 @@ if check_password():
                                 use_container_width=True)
             
             with tab3:  # 總覽
-                
+                df = df.sort_values(by="時間", ascending=True).reset_index(drop=True)
                 st.metric('Total', f"$ {df['金額'].sum()}")
-                st.dataframe(df.sort_values(by="時間", ascending=True),
-                                use_container_width=True)
+                st.dataframe(df, use_container_width=True)
