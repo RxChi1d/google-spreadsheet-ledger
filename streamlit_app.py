@@ -145,7 +145,6 @@ if check_password():
     with expander:
         df = pd.read_sql_query("select * from sheet",
                             conn)
-        print(df)
         def sumOfVal(series):
             if series.name:
                 return series["元"].sum()
@@ -155,7 +154,7 @@ if check_password():
         col1, col2 = st.columns(2)
         p1: int = df_by_who.iloc[0]
         p2: int = df_by_who.iloc[1]
-        col1.metric(str(df_by_who.index[0]), p2)
-        col2.metric(str(df_by_who.index[1]), p1)
+        col1.metric((df_by_who.index[0]).to_string(), p2)
+        col2.metric((df_by_who.index[1]).to_string(), p1)
         st.dataframe(df.sort_values(by="時間", ascending=False),
                     use_container_width=True)
