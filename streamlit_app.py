@@ -145,7 +145,7 @@ if check_password():
     with expander:
         df = pd.read_sql_query("select * from sheet",
                             conn)
-
+        print(df)
         def sumOfVal(series):
             if series.name:
                 return series["元"].sum()
