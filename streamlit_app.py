@@ -150,11 +150,11 @@ if check_password():
     form = st.form(key="annotation", clear_on_submit=True)
 
     with form:
-        display = {
-            "國泰世華": '國泰世華',
-            "中國信託": '中國信託',
-        }
-        options = ["國泰世華", "中國信託"]
+        display = {}
+        for card in st.secrets["card_type"]:
+            display[card] = card
+            
+        options = st.secrets["card_type"]
 
         category = st.selectbox(
             label="種類",
