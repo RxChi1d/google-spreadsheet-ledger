@@ -1,5 +1,2 @@
 .streamlit
 .venv
-
-poetry.lock
-pyproject.toml

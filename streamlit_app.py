@@ -187,45 +187,55 @@ if check_password():
             st.balloons()
 
     # 顯示目前的紀錄
-    expander = st.expander("顯示目前的紀錄", expanded=True)
-    with expander:
-        # 根據日期篩選資料
-        df = pd.read_sql_query("select * from sheet", conn)
-        sub_df = []
+    expander1 = st.expander("顯示本月紀錄", expanded=True)
+    with expander1:
+        # 取出整個df
+        whole_df = pd.read_sql_query("select * from sheet", conn)
+        
+        # 按週期篩選資料
+        selected_df = pd.DataFrame()
         for card in period_dict:
-            filter_ = (df['種類']==card) & (df['時間']>=period_dict[card][0]) & (df['時間']<=period_dict[card][1])
-            sub_df.append(df[filter_])
-        df = pd.concat(sub_df, axis=0, ignore_index=True)
+            filter_ = (whole_df['種類']==card) & (whole_df['時間']>=period_dict[card][0]) & (whole_df['時間']<=period_dict[card][1])
+            selected_df = pd.concat([selected_df, whole_df[filter_]], axis=0, ignore_index=True)
         
-        if len(df) == 0:
-            st.write("沒有紀錄，先記帳啦～")
+        tab1, tab2, tab3 = st.tabs(["卡片", "使用者", "本月總覽"])
         
-        else:
-            tab1, tab2, tab3 = st.tabs(["卡片", "使用者", "總覽"])
-            
-            with tab1:  # 卡片
-                for col, card_type in zip(st.columns(2), st.secrets["card_type"]):
-                    sub_df = df[df['種類']==card_type]
-                    price = sub_df['金額'].sum()
+        with tab1:  # 卡片
+            if len(selected_df) == 0:
+                st.write("沒有紀錄，先記帳啦～")
+                
+            for col, card_type in zip(st.columns(len(st.secrets["card_type"])), st.secrets["card_type"]):
+                sub_df = selected_df[selected_df['種類']==card_type]
+                price = sub_df['金額'].sum()
 
-                    col.metric(card_type, f'$ {price}')
-                    
-                    sub_df = sub_df.drop('種類', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
-                    col.dataframe(sub_df,
-                                use_container_width=True)
+                col.metric(card_type, f'$ {price}')
+                
+                sub_df = sub_df.drop('種類', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
+                col.dataframe(sub_df,
+                            use_container_width=True)
+        
+        with tab2:  # 使用者
+            if len(selected_df) == 0:
+                st.write("沒有紀錄，先記帳啦～")
+                
+            for col, user in zip(st.columns(2), st.secrets["users"]):
+                sub_df = selected_df[selected_df['使用者']==user]
+                price = sub_df['金額'].sum()
+                
+                col.metric(user, f'$ {price}')
+                
+                sub_df = sub_df.drop('使用者', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
+                col.dataframe(sub_df,
+                            use_container_width=True)
+        
+        with tab3:  # 本月總覽
+            df = selected_df.sort_values(by="時間", ascending=True).reset_index(drop=True)
+            st.metric('Total', f"$ {df['金額'].sum()}")
+            st.dataframe(df, use_container_width=True)
             
-            with tab2:  # 使用者
-                for col, user in zip(st.columns(2), st.secrets["users"]):
-                    sub_df = df[df['使用者']==user]
-                    price = sub_df['金額'].sum()
-                    
-                    col.metric(user, f'$ {price}')
-                    
-                    sub_df = sub_df.drop('使用者', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
-                    col.dataframe(sub_df,
-                                use_container_width=True)
-            
-            with tab3:  # 總覽
-                df = df.sort_values(by="時間", ascending=True).reset_index(drop=True)
-                st.metric('Total', f"$ {df['金額'].sum()}")
-                st.dataframe(df, use_container_width=True)
+    # 總覽
+    expander2 = st.expander("顯示全部紀錄", expanded=True)
+    with expander2:
+        df = whole_df.sort_values(by="時間", ascending=True).reset_index(drop=True)
+        st.metric('Total', f"$ {df['金額'].sum()}")
+        st.dataframe(df, use_container_width=True)
