@@ -28,7 +28,7 @@ def connect_to_gsheet():
         }
     )
 
-@st.experimental_memo(ttl=600)
+# @st.experimental_memo(ttl=600)
 def run_query(query):
     return conn.execute(query).fetchall()
 
