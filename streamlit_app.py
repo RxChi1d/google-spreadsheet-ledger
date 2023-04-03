@@ -29,6 +29,8 @@ def connect_to_gsheet():
     )
 
 # @st.experimental_memo(ttl=600)
+
+
 def run_query(query):
     return conn.execute(query).fetchall()
 
@@ -40,20 +42,27 @@ def get_data():
 def get_period():
     def get_cur_month():
         return datetime.now().strftime('%Y-%m')
+
     def get_last_month():
         month_date = datetime.now() - relativedelta(months=1)
         return month_date.strftime('%Y-%m')
+
     def get_next_month():
         month_date = datetime.now() + relativedelta(months=1)
         return month_date.strftime('%Y-%m')
-    
+
+    today = datetime.today().date()  # 獲取今天的日期
+    # date_str = '2023-4-13'
+    # today = datetime.strptime(date_str, '%Y-%m-%d').date()
+
     card_type = st.secrets['card_type']
     period_list = st.secrets['period']
     if len(card_type) != len(period_list):
-        assert KeyError(f"card_type({len(card_type)})與period({len(period)})數量不一致，")
-    
+        assert KeyError(
+            f"card_type({len(card_type)})與period({len(period)})數量不一致，")
+
     period_dict = {}
-    for card, period in zip(card_type,period_list):
+    for card, period in zip(card_type, period_list):
         if period[0] < period[1]:
             last_month = get_last_month()
             period_dict[card] = [datetime.strptime(f"{last_month}-{period[0]}", "%Y-%m-%d").date(),
@@ -63,9 +72,13 @@ def get_period():
             cur_month = get_cur_month()
             period_dict[card] = [datetime.strptime(f"{last_month}-{period[0]}", "%Y-%m-%d").date(),
                                  datetime.strptime(f"{cur_month}-{period[1]}", "%Y-%m-%d").date()]
-    
+
+        # 當超過本月週期，自動移往下個月週期
+        if period_dict[card][1] < today:
+            for i in range(len(period_dict[card])):
+                period_dict[card][i] += relativedelta(months=1)
+
     return period_dict
-    
 
 
 def add_row_to_sheet(row: list):
@@ -85,46 +98,50 @@ def add_row_to_sheet(row: list):
     """
     run_query(sql)
 
-def check_password():
+
+def check_password(test_mode=False):
     def password_entered():
         if st.session_state["password"] in st.secrets["password"]:
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
-    
-    if "password_correct" not in st.session_state:
-        st.text_input(
-            "胚斯沃德 🔒",
-            type="password",
-            on_change=password_entered,
-            key="password"
-        )
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input(
-            "🔒",
-            type="password",
-            on_change=password_entered,
-            key="password"
-        )
-        st.error("密碼錯誤 🤔 別亂來ㄋㄟ")
-        return False
+    if not test_mode:
+        if "password_correct" not in st.session_state:
+            st.text_input(
+                "胚斯沃德 🔒",
+                type="password",
+                on_change=password_entered,
+                key="password"
+            )
+            return False
+        elif not st.session_state["password_correct"]:
+            st.text_input(
+                "🔒",
+                type="password",
+                on_change=password_entered,
+                key="password"
+            )
+            st.error("密碼錯誤 🤔 別亂來ㄋㄟ")
+            return False
+        else:
+            return st.session_state["password_correct"]
     else:
-        return st.session_state["password_correct"]
+        return True
 
 
-if check_password():
+# 密碼登入
+if check_password(test_mode=False):
     conn = connect_to_gsheet()
     st.title("欸你記ㄍ帳拉")
 
     period_dict = get_period()  # 獲取信用卡週期
-    
+
     sidebar = st.sidebar
 
     # 側邊欄
     with sidebar:
-        sidebar.write("還在測試中喔~")
+        # sidebar.write("還在測試中喔~")
         sidebar.write(
             f"Google 試算表的[網址](https://docs.google.com/spreadsheets/d/{st.secrets['sheet_id']}/edit)")
 
@@ -138,13 +155,13 @@ if check_password():
         - `註記`: &nbsp; 附加說明
         - `使用者`: &nbsp; 誰花的$$
         """)
-        
+
         # 帳單週期
         sidebar.write('帳單期間：')
         content = ''
         for card in period_dict:
-            content += f"- {card}： {period_dict[card][0]}~{period_dict[card][1]} (暫定)\n" 
-        
+            content += f"- {card}： {period_dict[card][0]}~{period_dict[card][1]}\n"
+
         sidebar.write(content)
 
     form = st.form(key="annotation", clear_on_submit=True)
@@ -153,7 +170,7 @@ if check_password():
         display = {}
         for card in st.secrets["card_type"]:
             display[card] = card
-            
+
         options = st.secrets["card_type"]
 
         category = st.selectbox(
@@ -186,56 +203,115 @@ if check_password():
             st.success("新增成功!")
             st.balloons()
 
-    # 顯示目前的紀錄
-    expander1 = st.expander("顯示本月紀錄", expanded=True)
-    with expander1:
-        # 取出整個df
+    # 取出整個df
         whole_df = pd.read_sql_query("select * from sheet", conn)
-        
+
+    # 顯示本期的紀錄
+    expander1 = st.expander("顯示本期紀錄", expanded=True)
+    with expander1:
         # 按週期篩選資料
         selected_df = pd.DataFrame()
         for card in period_dict:
-            filter_ = (whole_df['種類']==card) & (whole_df['時間']>=period_dict[card][0]) & (whole_df['時間']<=period_dict[card][1])
-            selected_df = pd.concat([selected_df, whole_df[filter_]], axis=0, ignore_index=True)
-        
-        tab1, tab2, tab3 = st.tabs(["卡片", "使用者", "本月總覽"])
-        
+            filter_ = (whole_df['種類'] == card) & (whole_df['時間'] >= period_dict[card][0]) & (
+                whole_df['時間'] <= period_dict[card][1])
+            selected_df = pd.concat(
+                [selected_df, whole_df[filter_]], axis=0, ignore_index=True)
+
+        tab1, tab2, tab3 = st.tabs(["卡片", "使用者", "本期總覽"])
+
         with tab1:  # 卡片
             if len(selected_df) == 0:
                 st.write("沒有紀錄，先記帳啦～")
-                
+
             for col, card_type in zip(st.columns(len(st.secrets["card_type"])), st.secrets["card_type"]):
-                sub_df = selected_df[selected_df['種類']==card_type]
+                sub_df = selected_df[selected_df['種類'] == card_type]
                 price = sub_df['金額'].sum()
 
                 col.metric(card_type, f'$ {price}')
-                
-                sub_df = sub_df.drop('種類', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
+
+                sub_df = sub_df.drop('種類', axis=1).sort_values(
+                    by="時間", ascending=True).reset_index(drop=True)
                 col.dataframe(sub_df,
-                            use_container_width=True)
-        
+                              use_container_width=True)
+
         with tab2:  # 使用者
             if len(selected_df) == 0:
                 st.write("沒有紀錄，先記帳啦～")
-                
+
             for col, user in zip(st.columns(2), st.secrets["users"]):
-                sub_df = selected_df[selected_df['使用者']==user]
+                sub_df = selected_df[selected_df['使用者'] == user]
                 price = sub_df['金額'].sum()
-                
+
                 col.metric(user, f'$ {price}')
-                
-                sub_df = sub_df.drop('使用者', axis=1).sort_values(by="時間", ascending=True).reset_index(drop=True)
+
+                sub_df = sub_df.drop('使用者', axis=1).sort_values(
+                    by="時間", ascending=True).reset_index(drop=True)
                 col.dataframe(sub_df,
-                            use_container_width=True)
-        
-        with tab3:  # 本月總覽
-            df = selected_df.sort_values(by="時間", ascending=True).reset_index(drop=True)
+                              use_container_width=True)
+
+        with tab3:  # 本期總覽
+            df = selected_df.sort_values(
+                by="時間", ascending=True).reset_index(drop=True)
             st.metric('Total', f"$ {df['金額'].sum()}")
             st.dataframe(df, use_container_width=True)
-            
-    # 總覽
-    expander2 = st.expander("顯示全部紀錄", expanded=True)
+
+    # 顯示本月的紀錄
+    expander2 = st.expander("顯示本月紀錄", expanded=True)
     with expander2:
-        df = whole_df.sort_values(by="時間", ascending=True).reset_index(drop=True)
+        # 取得本月的起始和結束時間
+        now = datetime.now()
+        start_of_month = datetime(now.year, now.month, 1).date()
+        end_of_month = (datetime(now.year, now.month+1, 1) -
+                        pd.Timedelta(days=1)).date()
+
+        # 按週期篩選資料
+        filter_ = (whole_df['時間'] >= start_of_month) & (
+            whole_df['時間'] <= end_of_month)
+        selected_df = whole_df[filter_]
+        selected_df = selected_df.reset_index(drop=True)
+
+        tab1, tab2, tab3 = st.tabs(["卡片", "使用者", "本月總覽"])
+
+        with tab1:  # 卡片
+            if len(selected_df) == 0:
+                st.write("沒有紀錄，先記帳啦～")
+
+            for col, card_type in zip(st.columns(len(st.secrets["card_type"])), st.secrets["card_type"]):
+                sub_df = selected_df[selected_df['種類'] == card_type]
+                price = sub_df['金額'].sum()
+
+                col.metric(card_type, f'$ {price}')
+
+                sub_df = sub_df.drop('種類', axis=1).sort_values(
+                    by="時間", ascending=True).reset_index(drop=True)
+                col.dataframe(sub_df,
+                              use_container_width=True)
+
+        with tab2:  # 使用者
+            if len(selected_df) == 0:
+                st.write("沒有紀錄，先記帳啦～")
+
+            for col, user in zip(st.columns(2), st.secrets["users"]):
+                sub_df = selected_df[selected_df['使用者'] == user]
+                price = sub_df['金額'].sum()
+
+                col.metric(user, f'$ {price}')
+
+                sub_df = sub_df.drop('使用者', axis=1).sort_values(
+                    by="時間", ascending=True).reset_index(drop=True)
+                col.dataframe(sub_df,
+                              use_container_width=True)
+
+        with tab3:  # 本月總覽
+            df = selected_df.sort_values(
+                by="時間", ascending=True).reset_index(drop=True)
+            st.metric('Total', f"$ {df['金額'].sum()}")
+            st.dataframe(df, use_container_width=True)
+
+    # 總覽
+    expander3 = st.expander("顯示全部紀錄", expanded=True)
+    with expander3:
+        df = whole_df.sort_values(
+            by="時間", ascending=False).reset_index(drop=True)
         st.metric('Total', f"$ {df['金額'].sum()}")
         st.dataframe(df, use_container_width=True)
